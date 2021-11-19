@@ -1,21 +1,26 @@
 name: build
 on: [push]
 
-
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         include:
-          - platform: ubuntu-latest
+          - os: ubuntu-latest
             build_folder: bundle/deb
+            name: Calc_linux_amd64.deb
             ext: "_amd64.deb"
-          - platform: windows-latest
-            build_folder: ''
-            ext: ".x64.msi"
+          - os: windows-latest
+            build_folder: 'bundle/msi'
+            ext: "_x64.msi"
+            name: Calc_windows_x64.msi
+          - os: macos-latest
+            build_folder: 'bundle/dmg'
+            ext: ".dmg"
+            name: Calc_macos.dmg
     steps:
       - uses: actions/checkout@v2
       - uses: pnpm/action-setup@v2.0.1
@@ -25,15 +30,16 @@ jobs:
         with:
           node-version: '14'
           cache: 'pnpm'
+      - run: pnpm install
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
           override: true
       - name: Install system dependencies (ubuntu)
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt update && sudo apt install libwebkit2gtk-4.0-dev \
+          sudo apt update && sudo apt install -y libwebkit2gtk-4.0-dev \
             build-essential \
             curl \
             wget \
@@ -46,11 +52,9 @@ jobs:
         run: pnpm build
       - name: Build tauri app
         run: pnpm tauri build
-      - name: Set version
-        run: echo ::set-env name=PACKAGE_VERSION::$(node -p "require('./package.json').version")
       - name: Upload build bundle
         uses: actions/upload-artifact@v2
         with:
-          name: Calc_{{ env.PACKAGE_VERSION }}{{ matrix.ext }}
-          path: ./src-tauri/target/release/{{ matrix.build_folder }}/Calc_{{ env.PACKAGE_VERSION }}{{ matrix.ext }}
+          name: ${{ matrix.name }}
+          path: ./src-tauri/target/release/${{ matrix.build_folder }}/*${{ matrix.ext }}
 
