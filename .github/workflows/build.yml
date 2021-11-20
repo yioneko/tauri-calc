@@ -3,24 +3,11 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            build_folder: bundle/deb
-            name: Calc_linux_amd64.deb
-            ext: "_amd64.deb"
-          - os: windows-latest
-            build_folder: 'bundle/msi'
-            ext: "_x64.msi"
-            name: Calc_windows_x64.msi
-          - os: macos-latest
-            build_folder: 'bundle/dmg'
-            ext: ".dmg"
-            name: Calc_macos.dmg
+        platform: [macos-latest, ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v2
       - uses: pnpm/action-setup@v2.0.1
@@ -30,31 +17,27 @@ jobs:
         with:
           node-version: '14'
           cache: 'pnpm'
-      - run: pnpm install
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
           override: true
-      - name: Install system dependencies (ubuntu)
-        if: matrix.os == 'ubuntu-latest'
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
         run: |
-          sudo apt update && sudo apt install -y libwebkit2gtk-4.0-dev \
-            build-essential \
-            curl \
-            wget \
-            libssl-dev \
-            libgtk-3-dev \
-            libappindicator3-dev \
-            patchelf \
-            librsvg2-dev
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
       - name: Build web
-        run: pnpm build
+        run: pnpm install && pnpm build
       - name: Build tauri app
-        run: pnpm tauri build
-      - name: Upload build bundle
-        uses: actions/upload-artifact@v2
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: ${{ matrix.name }}
-          path: ./src-tauri/target/release/${{ matrix.build_folder }}/*${{ matrix.ext }}
+          tagName: calc-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version
+          releaseName: "Calc v__VERSION__"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: false
+          tauriScript: pnpm tauri
 

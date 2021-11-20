@@ -12,7 +12,7 @@
   "tauri": {
     "bundle": {
       "active": true,
-      "targets": ["app", "msi", "deb"],
+      "targets": "all",
       "identifier": "com.yioneko.tauri-calc",
       "icon": [
         "icons/32x32.png",
